@@ -27,7 +27,7 @@ hellodevops-mini-project/
 - A GitHub account and an empty GitHub repository
 - Internet access to pull Jenkins, Docker, and Java container images
 
-A local JDK 21 is optional but useful for testing the Java file directly. The application container and Jenkins image provide their own JDKs.
+A local JDK 21 is optional but useful for testing the Java file directly. The application container and Jenkins image provide their own JDKs. The project files are nested under `hellodevops-mini-project/`, so run Docker Compose commands from that directory, not from the repository root.
 
 ## 3. Test the Java program locally (optional)
 
@@ -58,27 +58,27 @@ docker run --rm hello-devops:local
 
 The container should print the same two lines shown above.
 
-## 5. Push the project to GitHub
+## 5. Commit fixes and push to the existing GitHub repository
 
-1. Create a **new empty repository** on GitHub, for example `HelloDevOps-CICD`. Do not initialize it with a separate README, license, or `.gitignore`, because this project already includes them.
-2. From PowerShell, run these commands in the project directory, replacing the URL with your repository URL:
+The repository in this walkthrough is `https://github.com/YashLakkas24/helloDevops`. Keep the Git repository at the **`helloDevops/` root**, which contains this `hellodevops-mini-project/` folder. Do not run `git init` inside `hellodevops-mini-project/`; doing so would create an unintended nested Git repository.
+
+After copying the corrected files into your existing local checkout, open a terminal at the repository root and run:
 
 ```powershell
-git init
-git add .
-git commit -m "Add HelloDevOps CI/CD project"
-git branch -M main
-git remote add origin https://github.com/YOUR-USERNAME/HelloDevOps-CICD.git
-git push -u origin main
+git status
+git add README.md hellodevops-mini-project/Jenkinsfile hellodevops-mini-project/README.md
+git commit -m "Fix Jenkins pipeline paths and setup docs"
+git push origin main
 ```
 
-If Git asks you to identify yourself, configure your name and email with `git config --global user.name "Your Name"` and `git config --global user.email "you@example.com"`. Use GitHub's supported authentication method when prompted.
+If `git status` says there is nothing to commit, confirm that you extracted the patch into the correct local repository folder and allowed files to be overwritten. If your local branch is not named `main`, check it with `git branch --show-current` and push that branch instead.
 
 ## 6. Start Jenkins with Docker Desktop
 
-From the same project directory, run:
+From the repository root, enter the project directory and start the stack:
 
 ```powershell
+cd hellodevops-mini-project
 docker compose up -d --build
 ```
 
@@ -111,9 +111,9 @@ Paste the password into the Jenkins setup screen, install the suggested plugins 
 3. In the job configuration, find the **Pipeline** section.
 4. Set **Definition** to **Pipeline script from SCM**.
 5. Set **SCM** to **Git**.
-6. Enter your GitHub repository URL, such as `https://github.com/YOUR-USERNAME/HelloDevOps-CICD.git`.
+6. Enter your GitHub repository URL: `https://github.com/YashLakkas24/helloDevops.git`.
 7. Set **Branch Specifier** to `*/main`.
-8. Set **Script Path** to `Jenkinsfile`.
+8. Set **Script Path** to `hellodevops-mini-project/Jenkinsfile`. The Jenkins job checks out the repository root, and the pipeline enters `hellodevops-mini-project/` for Java and Docker build commands.
 9. Save the job, then click **Build Now**.
 
 For a public repository, credentials are not needed for checkout. For a private repository, add Jenkins credentials and select them in the job configuration.
@@ -123,6 +123,7 @@ For a public repository, credentials are not needed for checkout. For a private 
 | Stage | Action | Success condition |
 |---|---|---|
 | Checkout from GitHub | Checks out the configured repository | Checkout succeeds |
+| Verify Docker Access | Runs `docker version` | Jenkins can reach the Docker daemon |
 | Build Java | Runs `javac HelloDevOps.java` | Java source compiles; class file is archived |
 | Run Java and Verify Output | Runs `java HelloDevOps` | Output matches the two expected lines |
 | Build Docker Image | Builds `hello-devops:<build-number>` and `hello-devops:latest` | Docker image builds successfully |

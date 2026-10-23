@@ -15,26 +15,35 @@ pipeline {
             }
         }
 
+        stage('Verify Docker Access') {
+            steps {
+                sh 'docker version'
+            }
+        }
+
         stage('Build Java') {
             steps {
-                sh 'javac HelloDevOps.java'
-                archiveArtifacts artifacts: 'HelloDevOps.class', fingerprint: true
+                dir('hellodevops-mini-project') {
+                    sh 'javac HelloDevOps.java'
+                }
+                archiveArtifacts artifacts: 'hellodevops-mini-project/HelloDevOps.class', fingerprint: true
             }
         }
 
         stage('Run Java and Verify Output') {
             steps {
                 script {
-                    def actualOutput = sh(
-                        script: 'java HelloDevOps',
-                        returnStdout: true
-                    ).trim()
+                    def actualOutput = dir('hellodevops-mini-project') {
+                        sh(
+                            script: 'java HelloDevOps',
+                            returnStdout: true
+                        ).trim()
+                    }
 
                     echo "Application output:\n${actualOutput}"
-
                     def expectedOutput = "Hello DevOps!\nJava application running successfully."
                     if (actualOutput != expectedOutput) {
-                        error("Java output did not match the expected output.")
+                        error('Java output did not match the expected output.')
                     }
                 }
             }
@@ -42,7 +51,9 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build --pull -t hello-devops:${BUILD_NUMBER} -t hello-devops:latest .'
+                dir('hellodevops-mini-project') {
+                    sh 'docker build --pull -t hello-devops:${BUILD_NUMBER} -t hello-devops:latest .'
+                }
             }
         }
 
@@ -55,10 +66,9 @@ pipeline {
                     ).trim()
 
                     echo "Container output:\n${actualOutput}"
-
                     def expectedOutput = "Hello DevOps!\nJava application running successfully."
                     if (actualOutput != expectedOutput) {
-                        error("Container output did not match the expected output.")
+                        error('Container output did not match the expected output.')
                     }
                 }
             }
