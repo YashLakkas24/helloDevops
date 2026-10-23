@@ -1,0 +1,47 @@
+services:
+  docker:
+    image: docker:dind
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    volumes:
+      - jenkins-docker-certs:/certs/client
+      - docker-data:/var/lib/docker
+    networks:
+      - jenkins
+    command: ["--storage-driver=overlay2"]
+    healthcheck:
+      test: ["CMD-SHELL", "docker info > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  jenkins:
+    build:
+      context: ./jenkins
+    image: hellodevops-jenkins:local
+    container_name: hellodevops-jenkins
+    restart: unless-stopped
+    depends_on:
+      docker:
+        condition: service_healthy
+    environment:
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_CERT_PATH: /certs/client
+      DOCKER_TLS_VERIFY: "1"
+    ports:
+      - "8080:8080"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - jenkins-docker-certs:/certs/client:ro
+    networks:
+      - jenkins
+
+volumes:
+  jenkins_home:
+  jenkins-docker-certs:
+  docker-data:
+
+networks:
+  jenkins:
+    driver: bridge

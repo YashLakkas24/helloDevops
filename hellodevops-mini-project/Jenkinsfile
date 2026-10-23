@@ -1,0 +1,76 @@
+pipeline {
+    agent any
+
+    options {
+        skipDefaultCheckout(true)
+        timestamps()
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        stage('Checkout from GitHub') {
+            steps {
+                checkout scm
+                sh 'git log -1 --oneline'
+            }
+        }
+
+        stage('Build Java') {
+            steps {
+                sh 'javac HelloDevOps.java'
+                archiveArtifacts artifacts: 'HelloDevOps.class', fingerprint: true
+            }
+        }
+
+        stage('Run Java and Verify Output') {
+            steps {
+                script {
+                    def actualOutput = sh(
+                        script: 'java HelloDevOps',
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Application output:\n${actualOutput}"
+
+                    def expectedOutput = "Hello DevOps!\nJava application running successfully."
+                    if (actualOutput != expectedOutput) {
+                        error("Java output did not match the expected output.")
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build --pull -t hello-devops:${BUILD_NUMBER} -t hello-devops:latest .'
+            }
+        }
+
+        stage('Run Container and Verify Output') {
+            steps {
+                script {
+                    def actualOutput = sh(
+                        script: 'docker run --rm hello-devops:${BUILD_NUMBER}',
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Container output:\n${actualOutput}"
+
+                    def expectedOutput = "Hello DevOps!\nJava application running successfully."
+                    if (actualOutput != expectedOutput) {
+                        error("Container output did not match the expected output.")
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'SUCCESS: Java compiled, output verified, and Docker image built and tested.'
+        }
+        failure {
+            echo 'FAILURE: Inspect the stage logs above to find the failed step.'
+        }
+    }
+}
