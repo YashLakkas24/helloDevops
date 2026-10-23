@@ -1,70 +1,160 @@
-# HelloDevOps — CI/CD Automation Mini-Project
+# HelloDevOps
 
-A Java 21 mini-project demonstrating a basic CI/CD workflow with Git, GitHub, Jenkins, and Docker.
+**A beginner-friendly CI/CD pipeline using Java, GitHub, Jenkins, and Docker.**
 
-## Repository layout
+HelloDevOps demonstrates how a source-code change can be checked out, compiled, executed, packaged into a Docker image, and verified by an automated Jenkins pipeline.
 
-The application and local Jenkins setup are in [`hellodevops-mini-project/`](hellodevops-mini-project/). The detailed installation guide is in [`hellodevops-mini-project/README.md`](hellodevops-mini-project/README.md).
-
-## Quick start (Windows + Docker Desktop)
-
-1. Clone this repository and open it in VS Code.
-2. Start Docker Desktop and wait for the engine to be ready.
-3. In a VS Code terminal, change to the project directory:
-
-   ```powershell
-   cd hellodevops-mini-project
-   ```
-
-4. Build and start Jenkins and its Docker-in-Docker service:
-
-   ```powershell
-   docker compose up -d --build
-   docker compose ps
-   ```
-
-5. Open [http://localhost:8080](http://localhost:8080). Retrieve the initial setup password with:
-
-   ```powershell
-   docker compose exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
-   ```
-
-6. Finish Jenkins setup, then create a **Pipeline** job named `HelloDevOps-Pipeline`.
-7. Configure **Pipeline script from SCM** → **Git**, set the repository URL to `https://github.com/YashLakkas24/helloDevops.git`, branch to `*/main`, and **Script Path** to `hellodevops-mini-project/Jenkinsfile`.
-8. Save the job and click **Build Now**. Check **Console Output** for each stage.
-
-The pipeline checks out the repository at its root, compiles and runs the Java class from the nested project directory, builds the Docker image, runs the container, and verifies that both executions produce the expected output.
-
-## Expected output
+## Pipeline overview
 
 ```text
-Hello DevOps!
-Java application running successfully.
+GitHub repository
+      |
+      v
+Jenkins: Checkout
+      |
+      v
+Compile Java -----> Run Java + verify output
+      |
+      v
+Build Docker image
+      |
+      v
+Run container + verify output
+      |
+      v
+Build SUCCESS
 ```
 
-## Local project commands
+## Repository structure
 
-After changing to `hellodevops-mini-project/`, you can test the program directly:
+```text
+helloDevops/
+├── HelloDevOps.java       # Java application
+├── Dockerfile             # Builds the application image
+├── Jenkinsfile            # CI pipeline as code
+├── compose.yaml           # Local Jenkins + Docker-in-Docker setup
+├── .gitignore
+├── README.md
+└── jenkins/
+    └── Dockerfile         # Jenkins image with Git and Docker CLI
+```
+
+## Technology stack
+
+| Technology | Purpose |
+| --- | --- |
+| Java 21 | Sample application |
+| Git and GitHub | Source control and remote repository |
+| Jenkins | CI pipeline orchestration |
+| Docker | Container image build and runtime |
+| Docker Compose | Local development environment |
+
+## Quick start (Windows)
+
+### Prerequisites
+
+- Docker Desktop running with Linux containers enabled
+- Git for Windows
+- Internet access to download the required container images
+
+A local JDK 21 is optional; Jenkins and the application image each include a Java 21 runtime/toolchain.
+
+### 1. Clone the repository
+
+```powershell
+git clone https://github.com/YashLakkas24/helloDevops.git
+cd helloDevops
+```
+
+### 2. Start Jenkins
+
+Run these commands from the repository root, where `compose.yaml` is located:
+
+```powershell
+docker compose up -d --build
+docker compose ps
+```
+
+Wait until both services are running and the Docker service is healthy.
+
+Open [http://localhost:8080](http://localhost:8080). Retrieve the initial Jenkins administrator password with:
+
+```powershell
+docker compose exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+```
+
+Complete the Jenkins setup and create the administrator account.
+
+### 3. Configure the Jenkins job
+
+Create a **Pipeline** job named `HelloDevOps-Pipeline` with the following settings:
+
+| Setting | Value |
+| --- | --- |
+| Definition | Pipeline script from SCM |
+| SCM | Git |
+| Repository URL | `https://github.com/YashLakkas24/helloDevops.git` |
+| Branch Specifier | `*/main` |
+| Script Path | `Jenkinsfile` |
+
+Save the job and select **Build Now**. Open **Console Output** to inspect each stage.
+
+### 4. Test the Java app locally (optional)
+
+With JDK 21 installed, run from the repository root:
 
 ```powershell
 javac HelloDevOps.java
 java HelloDevOps
 ```
 
-Or test the Docker image independently:
+Expected output:
+
+```text
+Hello DevOps!
+Java application running successfully.
+```
+
+### 5. Test Docker locally (optional)
+
+With Docker Desktop running:
 
 ```powershell
 docker build -t hello-devops:local .
 docker run --rm hello-devops:local
 ```
 
+The container should print the same two lines.
+
+## What the pipeline verifies
+
+1. **Checkout from GitHub** — retrieves the configured source branch.
+2. **Verify Docker Access** — checks that Jenkins can communicate with the Docker daemon.
+3. **Build Java** — compiles `HelloDevOps.java` and archives the generated class.
+4. **Run Java and Verify Output** — compares the application's output with the expected result.
+5. **Build Docker Image** — creates `hello-devops:<build-number>` and `hello-devops:latest`.
+6. **Run Container and Verify Output** — runs the build-specific image and validates its output.
+
+Any failed command or output check fails the pipeline.
+
 ## Troubleshooting
 
-- **Docker command fails:** confirm Docker Desktop is running and configured for Linux containers.
-- **Port 8080 is occupied:** change the port mapping in `compose.yaml` from `8080:8080` to `8081:8080`, restart the stack, then visit `http://localhost:8081`.
-- **Jenkins checkout fails:** verify the repository URL and `main` branch; configure credentials in Jenkins if the repository is private.
-- **Docker stage fails:** check `docker compose ps` and `docker compose logs docker`; the Docker service should be healthy.
+- **Docker is unavailable:** Start Docker Desktop, wait for the engine, then rerun `docker compose up -d`.
+- **Port 8080 is occupied:** Change the Compose port mapping from `8080:8080` to `8081:8080`, restart the stack, and open `http://localhost:8081`.
+- **Jenkins cannot access Docker:** Check `docker compose ps` and `docker compose logs docker`. Verify the Docker service is healthy.
+- **Git checkout fails:** Confirm the repository URL and branch. Public repository checkout does not need credentials; private repositories do.
+- **Docker build fails:** Inspect the Jenkins Console Output and verify the Docker service can download `eclipse-temurin:21-jdk`.
+
+## Stop the environment
+
+Stop the containers while retaining the Jenkins configuration and Docker image cache:
+
+```powershell
+docker compose down
+```
+
+To also delete the named data volumes (including Jenkins configuration and cached Docker images), run `docker compose down -v` only when you intentionally want a complete reset.
 
 ## Security note
 
-This configuration is intended for a local educational demonstration. Docker-in-Docker runs in privileged mode. Do not expose Jenkins or the Docker daemon to the public internet, and do not use this configuration for untrusted multi-user workloads.
+This is a local educational configuration. The Docker-in-Docker service uses privileged mode. Do not expose Jenkins or the Docker daemon to the public internet, and do not use this configuration for untrusted multi-user workloads.

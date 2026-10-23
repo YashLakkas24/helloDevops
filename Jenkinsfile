@@ -23,22 +23,18 @@ pipeline {
 
         stage('Build Java') {
             steps {
-                dir('hellodevops-mini-project') {
-                    sh 'javac HelloDevOps.java'
-                }
-                archiveArtifacts artifacts: 'hellodevops-mini-project/HelloDevOps.class', fingerprint: true
+                sh 'javac HelloDevOps.java'
+                archiveArtifacts artifacts: 'HelloDevOps.class', fingerprint: true
             }
         }
 
         stage('Run Java and Verify Output') {
             steps {
                 script {
-                    def actualOutput = dir('hellodevops-mini-project') {
-                        sh(
-                            script: 'java HelloDevOps',
-                            returnStdout: true
-                        ).trim()
-                    }
+                    def actualOutput = sh(
+                        script: 'java HelloDevOps',
+                        returnStdout: true
+                    ).trim()
 
                     echo "Application output:\n${actualOutput}"
                     def expectedOutput = "Hello DevOps!\nJava application running successfully."
@@ -51,9 +47,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                dir('hellodevops-mini-project') {
-                    sh 'docker build --pull -t hello-devops:${BUILD_NUMBER} -t hello-devops:latest .'
-                }
+                sh 'docker build --pull -t hello-devops:${BUILD_NUMBER} -t hello-devops:latest .'
             }
         }
 
